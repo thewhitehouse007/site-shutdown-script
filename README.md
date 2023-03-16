@@ -15,7 +15,7 @@ The following configuration must be present:
 set system scripts op file shutdown_site.slax
 ```
 
-Type: **op shutdown_site** to run it
+Type: `op shutdown_site` to run it
 ***************************************************
 This command can also be executed by a specific login user by setting a user class with a login script 
 ```
@@ -28,3 +28,5 @@ set class SHUTDOWN
 set authentication plain-text-password
 commit
 ```
+NOTE: This user class must be set on both Firewall and Switches, however, do not configure the login script on the switch.
+Alternatively, just setup the user class and user name on all devices and ask the user to run `op shutdown_site` manually.
