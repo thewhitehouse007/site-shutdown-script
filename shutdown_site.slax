@@ -1,0 +1,100 @@
+version 1.1;
+/*
+************************************************
+This script is an op script that will shutdown 
+both the switch and router, on a site. 
+Naming convention is important as XXXX- = sitename
+is used to lookup the switch DNS IP and connect
+using hostname XXXX-SW01
+***************************************************
+* To run this script it must be installed in      *
+* /var/db/scripts/op/  on the Firewall            *
+* The following configured must be present:       *
+* set system scripts op file shutdown_site.slax   *
+* Type: "op shutdown-site" to run it              *
+***************************************************
+* This command can also be executed by a specific *
+* login user by setting a class with login script *
+top edit system login class SHUTDOWN 
+set login-script shutdown_site.slax
+set permissions maintenance
+set allow-commands "{request system power-off}"
+top edit system login user shutdown-user
+set class SHUTDOWN
+set authentication plain-text-password
+commit
+*/
+
+ns junos = "http://xml.juniper.net/junos/*/junos";
+ns xnm = "http://xml.juniper.net/xnm/1.1/xnm";
+ns jcs = "http://xml.juniper.net/junos/commit-scripts/1.0";
+
+import "../import/junos.xsl";
+
+match / {
+    var $banner = '
+* ****************************************************************************
+*
+*               - WARNING - SHUTDOWN SCRIPT EXECUTED - 
+* 
+*  This script is intented to shutdown both Router and Switch at this  
+*  site. This operation will be irreversable and power-on will require 
+*  on-site hands.
+* 
+* ****************************************************************************
+';
+
+    <op-script-results> {
+        /* Confirm if user intended on running this script */
+        expr jcs:output($banner);
+        var $response = {
+            call get-response();
+        }
+        if ($response == "no") {
+            call logout();
+        } 
+        
+        /* Gather Hostname and SiteName */
+        var $sitename = substring-before($hostname, "-");
+        var $switch_hostname = concat($sitename, "-SW01");
+        var $connection_options := {
+            <method> "junos-netconf";
+        }
+        /* Shutdown the remote device */
+        var $connection = jcs:open($switch_hostname, $connection_options);
+        var $rpc = <request-power-off>;
+        var $results = jcs:execute($connection, $rpc);
+        expr $results;
+        expr jcs:close($connection);
+        expr jcs:output("SWITCH "_ $switch_hostname _" IS GOING SHUTDOWN");
+
+        /* Delay for the specified amount of time */
+        expr jcs:sleep(5);
+
+        /* Shutdown the local device */
+        var $results2 =  jcs:invoke($rpc);
+        expr $results2;
+        expr jcs:output("ROUTER "_ $hostname _" IS GOING SHUTDOWN: Good-Bye!");
+    }
+}
+
+template get-response()
+{
+    var $newline = jcs:printf("\n");
+
+    expr jcs:output($newline);
+
+    var $res = jcs:input("Are you sure you want to execute this operation? (yes/no) ");
+
+    if ($res !=  "yes" && $res != "no") {
+	    call get-response();
+    } else {
+	    expr $res;
+    }
+}
+
+template logout()
+{
+    var $rpc = <command> "request system logout user " _ $user;
+	var $noresponse = jcs:invoke($rpc);
+}
