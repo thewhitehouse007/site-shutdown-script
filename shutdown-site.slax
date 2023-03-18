@@ -1,0 +1,103 @@
+version 1.1;
+/*
+************************************************
+This script is an op script that will shutdown 
+both the switch and router, on a site. 
+Naming convention is important as XXXX- = sitename
+is used to lookup the switch DNS IP and connect
+using hostname XXXX-SW01
+***************************************************
+* To run this script it must be installed in      *
+* /var/db/scripts/op/  on the Firewall            *
+* The following configured must be present:       *
+* set system scripts op file shutdown-site.slax   *
+* Type: "op shutdown-site" to run it              *
+***************************************************
+* This command can also be executed by a specific *
+* login user by setting a class with login script *
+top edit system login class SHUTDOWN 
+set login-script shutdown-site.slax
+set permissions maintenance
+set allow-commands "{request system power-off}"
+top edit system login user shutdown-user
+set class SHUTDOWN
+set authentication plain-text-password
+commit
+*/
+
+ns junos = "http://xml.juniper.net/junos/*/junos";
+ns xnm = "http://xml.juniper.net/xnm/1.1/xnm";
+ns jcs = "http://xml.juniper.net/junos/commit-scripts/1.0";
+
+import "../import/junos.xsl";
+
+match / {
+    var $banner = '
+* ************************************************************************* *
+*                                                                           *
+*         = WARNING = SITE SHUTDOWN SCRIPT IS ABOUT TO BE EXECUTED =        *
+*                                                                           *
+*  This script is intended to shut-down & power-off both Router and Switch  *
+*  at this site. This operation is irreversible and power-on will require   *
+*  on-site intervention.                                                    *
+*                                                                           *
+* ************************************************************************* *';
+    <op-script-results> {
+        /* Confirm that user intended on running this script */
+        expr jcs:output($banner);
+        var $response = {
+            call get-response();
+        }
+        if ($response == "no") {
+            call logout();
+        } 
+        if ($response == "yes") {
+            /* Gather Hostname and Site name */
+            var $sitename = substring-before($hostname, "-");
+            var $switch_hostname = concat($sitename, "-SW01");
+            var $connection_options := {
+              <method> "junos-netconf";
+            }
+            /* Shutdown the remote device */
+            var $connection = jcs:open($switch_hostname, $connection_options);
+            var $rpc = <request-power-off>;
+            var $results = jcs:execute($connection, $rpc);
+            expr $results;
+            expr jcs:close($connection);
+            expr jcs:output("SWITCH "_ $switch_hostname _" SHUTTING DOWN & POWERING OFF: Stand-by!");
+            /* Delay for the 5 seconds to allow user to read */
+            expr jcs:sleep(5);
+            /* Shutdown the local device */
+            var $result2 =  jcs:invoke($rpc);
+            expr $result2;
+            expr jcs:output("ROUTER "_ $hostname _" SHUTTING DOWN & POWERING OFF: Good-bye!");
+            /* Delay for the 5 seconds to allow user to read */
+            expr jcs:sleep(5);
+        }
+    }
+}
+
+template get-response()
+{
+    var $newline = jcs:printf("\n");
+    expr jcs:output($newline);
+    var $res = jcs:input("Are you sure you want to execute this operation? (yes/no) ");
+    if ($res !=  "yes" && $res != "no") {
+	      call get-response();
+    } else {
+	      expr $res;
+    }
+}
+
+template logout()
+{
+	  var $goodbye = '
+* ************************************************************************* *
+*                  = EXITTING SHUTDOWN SCRIPT IMMEDIATELY =                 *
+*                                 Good-bye!                                 *
+* ************************************************************************* *';
+    expr jcs:output($goodbye);
+    var $logout_user = <command> "request system logout user " _ $user _ " all";
+    var $cmdoutput1 = jcs:invoke($logout_user);
+    expr jcs:output($cmdoutput1);
+}
