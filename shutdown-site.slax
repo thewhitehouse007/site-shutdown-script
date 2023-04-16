@@ -60,7 +60,11 @@ match / {
             }
             /* Shutdown the remote device */
             var $connection = jcs:open($switch_hostname, $connection_options);
-            var $rpc = <request-power-off>;
+            var $rpc = {
+	        <request-power-off> {
+		    <in> 1;
+		}
+	    }
             var $results = jcs:execute($connection, $rpc);
             expr $results;
             expr jcs:close($connection);
