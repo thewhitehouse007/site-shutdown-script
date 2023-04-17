@@ -1,10 +1,8 @@
 version 1.1;
 /*
-************************************************
-This script is an op script that will shutdown 
-both the switch and router, on a site. 
-Naming convention is important as XXXX- = sitename
-is used to lookup the switch DNS IP and connect
+***************************************************
+This script is an op script that will shutdown both the switch and router, on a site. 
+Naming convention is important as XXXX- = sitename is used to lookup the switch DNS IP and connect
 using hostname XXXX-SW01
 ***************************************************
 * To run this script it must be installed in      *
@@ -13,8 +11,7 @@ using hostname XXXX-SW01
 * set system scripts op file shutdown-site.slax   *
 * Type: "op shutdown-site" to run it              *
 ***************************************************
-* This command can also be executed by a specific *
-* login user by setting a class with login script *
+* This command can also be executed by a specific login user by setting a class with login script *
 top edit system login class SHUTDOWN 
 set login-script shutdown-site.slax
 set permissions maintenance
@@ -61,10 +58,10 @@ match / {
             /* Shutdown the remote device */
             var $connection = jcs:open($switch_hostname, $connection_options);
             var $rpc = {
-	        <request-power-off> {
-		    <in> 1;
-		}
-	    }
+                <request-power-off> {
+                    <in> 1;
+                }
+            }
             var $results = jcs:execute($connection, $rpc);
             expr $results;
             expr jcs:close($connection);

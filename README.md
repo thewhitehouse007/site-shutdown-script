@@ -1,10 +1,8 @@
 # shutdown-site.slax
 
 ************************************************
-This script is an op script that will shutdown 
-both the switch and router, on a site. 
-Naming convention is important as XXXX--FW01 = sitename
-is used to lookup the switch DNS IP and connect
+This script is an op script that will shutdown both the switch and router, on a site. 
+Naming convention is important as XXXX--FW01 = sitename is used to lookup the switch DNS IP and connect
 using hostname XXXX-SW01
 ***************************************************
 To run this script it must be installed in
